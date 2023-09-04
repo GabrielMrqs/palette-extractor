@@ -1,23 +1,25 @@
 use anyhow::Error;
 use clap::Parser;
 use image::{GenericImageView, Rgba};
+use imageproc::{drawing::draw_filled_rect_mut, rect::Rect};
 use rand::seq::IteratorRandom;
 
 fn main() -> Result<(), Error> {
     let args = Args::parse();
-    let image = image::open(args.path)?;
+    let mut image = image::open(&args.path)?;
     let mut rng = rand::thread_rng();
+    let rect_size = image.height() / args.k;
     let points: Vec<Point> = image.pixels().map(|x| Point::new(x.2)).collect();
     let clusters: Vec<Cluster> = (0..args.k)
         .filter_map(|_| points.iter().choose(&mut rng))
         .map(|point| Cluster::new(*point))
         .collect();
 
-    let clusters = fill_clusters(points, clusters);
-    for mut cluster in clusters {
+    let mut clusters = fill_clusters(points, clusters);
+    for (i, cluster) in clusters.iter_mut().enumerate() {
         let len = cluster.points.len() as u32;
         let [mut r, mut g, mut b, mut a] = [0, 0, 0, 0];
-        for point in cluster.points {
+        for point in &cluster.points {
             let [p_r, p_g, p_b, p_a] = point.rgba.0;
             r += p_r as u32;
             g += p_g as u32;
@@ -31,14 +33,15 @@ fn main() -> Result<(), Error> {
             (a / len) as u8,
         ];
         cluster.center = Point::new(Rgba([r, g, b, a]));
-        let hex = rgb_to_hex(r, g, b);
-        println!("{hex}");
-    }
-    Ok(())
-}
 
-fn rgb_to_hex(r: u8, g: u8, b: u8) -> String {
-    format!("#{:02X}{:02X}{:02X}", r, g, b)
+        let rect = Rect::at(0, i as i32 * rect_size as i32).of_size(rect_size, rect_size);
+
+        draw_filled_rect_mut(&mut image, rect, cluster.center.rgba);
+    }
+
+    image.save(format!("{}output.png", args.path))?;
+
+    Ok(())
 }
 
 fn fill_clusters(points: Vec<Point>, mut clusters: Vec<Cluster>) -> Vec<Cluster> {
@@ -101,5 +104,5 @@ struct Args {
     #[arg(short)]
     path: String,
     #[arg(short)]
-    k: u8,
+    k: u32,
 }
