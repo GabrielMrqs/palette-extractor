@@ -1,28 +1,24 @@
-use std::{env, sync::Mutex};
+use std::env;
 
 use anyhow::Error;
 use image::{GenericImageView, Rgba};
 use rand::seq::IteratorRandom;
-use rayon::prelude::{IntoParallelRefIterator, ParallelIterator};
 
 fn main() -> Result<(), Error> {
     let args: Vec<String> = env::args().collect();
     let path = &args[1];
-    let k = args[2].parse::<usize>().unwrap();
+    let k = args[2].parse::<usize>()?;
     let image = image::open(path)?;
     let mut rng = rand::thread_rng();
     let points: Vec<Point> = image.pixels().map(|x| Point::new(x.2)).collect();
     let clusters: Vec<Cluster> = (0..k)
         .filter_map(|_| points.iter().choose(&mut rng))
-        .map(|point| Cluster::new(point.clone()))
+        .map(|point| Cluster::new(*point))
         .collect();
 
     let clusters = fill_clusters(points, clusters);
     for mut cluster in clusters {
         let len = cluster.points.len() as u32;
-        if len == 0 {
-            continue;
-        }
         let [mut r, mut g, mut b, mut a] = [0, 0, 0, 0];
         for point in cluster.points {
             let [p_r, p_g, p_b, p_a] = point.rgba.0;
@@ -31,42 +27,40 @@ fn main() -> Result<(), Error> {
             b += p_b as u32;
             a += p_a as u32;
         }
-        let rgba = Rgba([
+        let [r, g, b, a] = [
             (r / len) as u8,
             (g / len) as u8,
             (b / len) as u8,
             (a / len) as u8,
-        ]);
-
-        cluster.center = Point::new(rgba);
-        println!("{rgba:?}");
+        ];
+        cluster.center = Point::new(Rgba([r, g, b, a]));
+        let hex = rgba_to_hex(r, g, b, a);
+        println!("{hex}");
     }
     Ok(())
 }
 
-fn fill_clusters(points: Vec<Point>, clusters: Vec<Cluster>) -> Vec<Cluster> {
-    let clusters = Mutex::new(clusters);
+fn rgba_to_hex(r: u8, g: u8, b: u8, a: u8) -> String {
+    format!("#{:02X}{:02X}{:02X}{:02X}", r, g, b, a)
+}
 
-    points.par_iter().for_each(|point| {
+fn fill_clusters(points: Vec<Point>, mut clusters: Vec<Cluster>) -> Vec<Cluster> {
+    points.iter().for_each(|point| {
         let mut min_distance = f64::MAX;
         let mut idx = 0;
 
-        {
-            let clusters = clusters.lock().unwrap();
-            for (i, cluster) in clusters.iter().enumerate() {
-                let distance = euclidean(point, &cluster.center);
-                if distance < min_distance {
-                    min_distance = distance;
-                    idx = i;
-                }
+        for (i, cluster) in clusters.iter().enumerate() {
+            let distance = euclidean(point, &cluster.center);
+            if distance < min_distance {
+                min_distance = distance;
+                idx = i;
             }
         }
 
-        let mut clusters = clusters.lock().unwrap();
-        clusters[idx].points.push(point.clone());
+        clusters[idx].points.push(*point);
     });
 
-    clusters.into_inner().unwrap()
+    clusters
 }
 
 fn euclidean(a: &Point, b: &Point) -> f64 {
@@ -79,7 +73,7 @@ fn euclidean(a: &Point, b: &Point) -> f64 {
     (distance as f64).sqrt()
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 struct Point {
     rgba: Rgba<u8>,
 }
@@ -100,7 +94,7 @@ impl Cluster {
     fn new(center: Point) -> Self {
         Self {
             center,
-            points: Vec::new(),
+            points: vec![center],
         }
     }
 }

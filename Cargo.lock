@@ -370,7 +370,6 @@ dependencies = [
  "anyhow",
  "image",
  "rand",
- "rayon",
 ]
 
 [[package]]
