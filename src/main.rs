@@ -34,14 +34,14 @@ fn main() -> Result<(), Error> {
             (a / len) as u8,
         ];
         cluster.center = Point::new(Rgba([r, g, b, a]));
-        let hex = rgba_to_hex(r, g, b, a);
+        let hex = rgb_to_hex(r, g, b);
         println!("{hex}");
     }
     Ok(())
 }
 
-fn rgba_to_hex(r: u8, g: u8, b: u8, a: u8) -> String {
-    format!("#{:02X}{:02X}{:02X}{:02X}", r, g, b, a)
+fn rgb_to_hex(r: u8, g: u8, b: u8) -> String {
+    format!("#{:02X}{:02X}{:02X}", r, g, b)
 }
 
 fn fill_clusters(points: Vec<Point>, mut clusters: Vec<Cluster>) -> Vec<Cluster> {
