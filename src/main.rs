@@ -1,17 +1,14 @@
-use std::env;
-
 use anyhow::Error;
+use clap::Parser;
 use image::{GenericImageView, Rgba};
 use rand::seq::IteratorRandom;
 
 fn main() -> Result<(), Error> {
-    let args: Vec<String> = env::args().collect();
-    let path = &args[1];
-    let k = args[2].parse::<usize>()?;
-    let image = image::open(path)?;
+    let args = Args::parse();
+    let image = image::open(args.path)?;
     let mut rng = rand::thread_rng();
     let points: Vec<Point> = image.pixels().map(|x| Point::new(x.2)).collect();
-    let clusters: Vec<Cluster> = (0..k)
+    let clusters: Vec<Cluster> = (0..args.k)
         .filter_map(|_| points.iter().choose(&mut rng))
         .map(|point| Cluster::new(*point))
         .collect();
@@ -97,4 +94,12 @@ impl Cluster {
             points: vec![center],
         }
     }
+}
+
+#[derive(Parser, Debug)]
+struct Args {
+    #[arg(short)]
+    path: String,
+    #[arg(short)]
+    k: u8,
 }
