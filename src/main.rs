@@ -32,14 +32,13 @@ fn main() -> Result<(), Error> {
             (b / len) as u8,
             (a / len) as u8,
         ];
-        cluster.center = Point::new(Rgba([r, g, b, a]));
 
         let rect = Rect::at(0, i as i32 * rect_size as i32).of_size(rect_size, rect_size);
 
-        draw_filled_rect_mut(&mut image, rect, cluster.center.rgba);
+        draw_filled_rect_mut(&mut image, rect, Rgba([r, g, b, a]));
     }
 
-    image.save(format!("{}output.png", args.path))?;
+    image.save(format!("{}_{}k.png", args.path, args.k))?;
 
     Ok(())
 }
